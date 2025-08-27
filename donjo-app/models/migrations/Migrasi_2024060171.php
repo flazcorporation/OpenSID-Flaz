@@ -144,10 +144,11 @@ class Migrasi_2024060171 extends MY_Model
             ->first() ?? [];
 
         if (! $setting) {
+            return;
         }
 
-        $value  = json_decode($setting->value, true);
-        $option = json_decode($setting->option, true);
+        $value  = json_decode($setting->value ?? '[]', true) ?? [];
+        $option = json_decode($setting->option ?? '[]', true) ?? [];
 
         if (count($value) > count($media_sosial) || count($option) > count($media_sosial)) {
             $value  = array_values(array_filter(array_unique($value), static fn ($item) => in_array($item, $media_sosial)));
