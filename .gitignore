@@ -91,3 +91,6 @@ Modules/*
 
 # ignore favicon.ico
 /favicon.ico
+
+#OpenSID Flaz
+chat.txt
