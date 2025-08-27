@@ -316,8 +316,9 @@ class Install extends CI_Controller
         log_message('info', 'Session ID after save: ' . $this->session->session_id);
         
 
-        // Langsung redirect ke migrations karena koneksi sudah berhasil
-        return redirect('install/migrations');
+        // Tampilkan pesan sukses di halaman database, bukan redirect otomatis
+        $this->session->set_flashdata('success', 'Koneksi database berhasil! Silakan lanjutkan ke tahap berikutnya.');
+        return redirect('install/database');
     }
 
     private function config_database(array $request = []): array
