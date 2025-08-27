@@ -195,11 +195,17 @@ class Install extends CI_Controller
                 'dbdriver' => $config['dbdriver']
             ]));
             
-            $this->load->database($config, true);
+            // Load database dengan return object
+            $db = $this->load->database($config, true);
             
-            // Test koneksi eksplisit
-            if (!$this->db->initialize()) {
-                throw new Exception('Unable to initialize database connection');
+            // Test koneksi dengan query simple
+            if ($db && method_exists($db, 'query')) {
+                $result = $db->query('SELECT 1');
+                if (!$result) {
+                    throw new Exception('Database connection test failed');
+                }
+            } else {
+                throw new Exception('Database object not created properly');
             }
             
         } catch (Exception $e) {
