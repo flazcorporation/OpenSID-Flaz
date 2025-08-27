@@ -250,13 +250,14 @@ class Install extends CI_Controller
             return redirect('install/database');
         }
 
-        // Simpan konfigurasi database ke session untuk langkah berikutnya
+        // Simpan konfigurasi database ke session untuk langkah berikutnya  
+        // Menggunakan key yang sama dengan config_database() method
         $this->session->set_userdata([
-            'database_hostname' => $this->input->post('database_hostname'),
-            'database_port' => $this->input->post('database_port'),
-            'database_name' => $this->input->post('database_name'),
-            'database_username' => $this->input->post('database_username'),
-            'database_password' => $this->input->post('database_password')
+            'hostname' => $this->input->post('database_hostname'),
+            'port' => $this->input->post('database_port'),
+            'database' => $this->input->post('database_name'),
+            'username' => $this->input->post('database_username'),
+            'password' => $this->input->post('database_password')
         ]);
 
         $this->session->set_flashdata('success', 'Koneksi database berhasil! Klik tombol di bawah untuk melanjutkan ke langkah berikutnya.');
@@ -340,13 +341,28 @@ class Install extends CI_Controller
             show_404();
         }
 
-        $this->load->database($this->config_database());
+        // Cek apakah konfigurasi database ada di session
+        if (!$this->session->hostname || !$this->session->database || !$this->session->username) {
+            log_message('error', 'Database configuration not found in session. hostname=' . ($this->session->hostname ?: 'null') . ', database=' . ($this->session->database ?: 'null') . ', username=' . ($this->session->username ?: 'null'));
+            return redirect('install/database');
+        }
 
-        if (
-            ! $this->db
-            || ! $this->check_server()
-            || ! $this->check_folders()
-        ) {
+        try {
+            $this->load->database($this->config_database());
+            
+            // Test koneksi database
+            if (!$this->db || !$this->db->initialize()) {
+                throw new Exception('Unable to initialize database connection');
+            }
+            
+            log_message('info', 'Database loaded successfully for migrations');
+        } catch (Exception $e) {
+            log_message('error', 'Database connection failed in migrations: ' . $e->getMessage());
+            return redirect('install/database');
+        }
+
+        if (!$this->check_server() || !$this->check_folders()) {
+            log_message('error', 'Server or folders check failed in migrations');
             return redirect('install/database');
         }
 
