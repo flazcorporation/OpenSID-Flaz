@@ -58,6 +58,34 @@ class Install extends CI_Controller
     public function __construct()
     {
         parent::__construct();
+        
+        // Pastikan folder sessions ada untuk session storage
+        $sessions_path = FCPATH . 'storage/framework/sessions';
+        if (!is_dir($sessions_path)) {
+            if (!mkdir($sessions_path, 0755, true)) {
+                log_message('error', 'Unable to create sessions directory: ' . $sessions_path);
+            } else {
+                log_message('info', 'Created sessions directory: ' . $sessions_path);
+                // Tambahkan index.html untuk security
+                file_put_contents($sessions_path . '/index.html', '<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><p>Directory access is forbidden.</p></body></html>');
+            }
+        }
+        
+        // Set session save path ke folder yang kita buat
+        ini_set('session.save_path', $sessions_path);
+        
+        // Load session dengan konfigurasi khusus untuk installer
+        $session_config = [
+            'sess_driver' => 'files',
+            'sess_cookie_name' => 'opensid_installer',
+            'sess_expiration' => 3600, // 1 hour
+            'sess_save_path' => $sessions_path,
+            'sess_match_ip' => false,
+            'sess_time_to_update' => 300,
+            'sess_regenerate_destroy' => false,
+        ];
+        
+        $this->load->library('session', $session_config);
         $this->load->config('installer');
         $this->folder_lainnya();
     }
@@ -252,13 +280,17 @@ class Install extends CI_Controller
 
         // Simpan konfigurasi database ke session untuk langkah berikutnya  
         // Menggunakan key yang sama dengan config_database() method
-        $this->session->set_userdata([
+        $db_config = [
             'hostname' => $this->input->post('database_hostname'),
             'port' => $this->input->post('database_port'),
             'database' => $this->input->post('database_name'),
             'username' => $this->input->post('database_username'),
             'password' => $this->input->post('database_password')
-        ]);
+        ];
+        
+        // Set flag instalasi dan database config
+        $this->session->set_userdata('instalasi', true);
+        $this->session->set_userdata($db_config);
 
         $this->session->set_flashdata('success', 'Koneksi database berhasil! Klik tombol di bawah untuk melanjutkan ke langkah berikutnya.');
         
@@ -343,7 +375,7 @@ class Install extends CI_Controller
 
         // Cek apakah konfigurasi database ada di session
         if (!$this->session->hostname || !$this->session->database || !$this->session->username) {
-            log_message('error', 'Database configuration not found in session. hostname=' . ($this->session->hostname ?: 'null') . ', database=' . ($this->session->database ?: 'null') . ', username=' . ($this->session->username ?: 'null'));
+            $this->session->set_flashdata('errors', 'Konfigurasi database hilang dari session. Pastikan folder storage/framework/sessions ada dan memiliki permission 755. Jika folder tidak ada, buat manual di File Manager cPanel.');
             return redirect('install/database');
         }
 
