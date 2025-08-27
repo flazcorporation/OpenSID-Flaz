@@ -38,6 +38,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class () extends Migration {
     /**
@@ -63,14 +64,17 @@ return new class () extends Migration {
             $table->integer('config_id')->nullable();
             $table->enum('MultiPart', ['false', 'true'])->nullable()->default('false');
             $table->integer('RelativeValidity')->nullable()->default(-1);
-            $table->string('SenderID')->nullable();
+            $table->string('SenderID', 100)->nullable();
             $table->timestamp('SendingTimeOut')->nullable();
             $table->enum('DeliveryReport', ['default', 'yes', 'no'])->nullable()->default('default');
             $table->text('CreatorID')->nullable();
 
-            $table->index(['config_id', 'SenderID'], 'outbox_sender_config');
             $table->index(['SendingDateTime', 'SendingTimeOut'], 'outbox_date_config');
         });
+        
+        // Untuk menghindari error "Specified key was too long" pada MySQL utf8mb4
+        // Buat index dengan panjang terbatas setelah tabel dibuat
+        DB::statement('ALTER TABLE outbox ADD INDEX outbox_sender_config (config_id, SenderID(50))');
     }
 
     /**

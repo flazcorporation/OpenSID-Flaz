@@ -58,6 +58,36 @@ class Install extends CI_Controller
     public function __construct()
     {
         parent::__construct();
+        
+        // Pastikan folder sessions ada untuk session storage
+        $sessions_path = FCPATH . 'storage/framework/sessions';
+        log_message('info', 'Installer constructor - sessions path: ' . $sessions_path . ', exists: ' . (is_dir($sessions_path) ? 'yes' : 'no'));
+        
+        if (!is_dir($sessions_path)) {
+            if (!mkdir($sessions_path, 0755, true)) {
+                log_message('error', 'Unable to create sessions directory: ' . $sessions_path);
+            } else {
+                log_message('info', 'Created sessions directory: ' . $sessions_path);
+                // Tambahkan index.html untuk security
+                file_put_contents($sessions_path . '/index.html', '<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><p>Directory access is forbidden.</p></body></html>');
+            }
+        }
+        
+        // Set session save path ke folder yang kita buat
+        ini_set('session.save_path', $sessions_path);
+        
+        // Load session dengan konfigurasi khusus untuk installer
+        $session_config = [
+            'sess_driver' => 'files',
+            'sess_cookie_name' => 'opensid_installer',
+            'sess_expiration' => 3600, // 1 hour
+            'sess_save_path' => $sessions_path,
+            'sess_match_ip' => false,
+            'sess_time_to_update' => 300,
+            'sess_regenerate_destroy' => false,
+        ];
+        
+        $this->load->library('session', $session_config);
         $this->load->config('installer');
         $this->folder_lainnya();
     }
@@ -94,8 +124,9 @@ class Install extends CI_Controller
 
     private function check_server(): bool
     {
-        foreach ($this->config->item('server') as $check) {
+        foreach ($this->config->item('server') as $name => $check) {
             if (! $check['check']()) {
+                log_message('error', 'Server check failed: ' . $name . ' - ' . $check['name']);
                 return false;
             }
         }
@@ -124,8 +155,9 @@ class Install extends CI_Controller
 
     private function check_folders(): bool
     {
-        foreach ($this->config->item('folders') as $check) {
+        foreach ($this->config->item('folders') as $name => $check) {
             if (! $check['check']()) {
+                log_message('error', 'Folder check failed: ' . $name . ' - ' . $check['name']);
                 return false;
             }
         }
@@ -143,10 +175,21 @@ class Install extends CI_Controller
             show_404();
         }
 
-        if (! $this->check_server() || ! $this->check_folders()) {
+        $server_ok = $this->check_server();
+        $folders_ok = $this->check_folders();
+        
+        log_message('info', 'Server check: ' . ($server_ok ? 'PASS' : 'FAIL'));
+        log_message('info', 'Folders check: ' . ($folders_ok ? 'PASS' : 'FAIL'));
+        
+        if (!$server_ok || !$folders_ok) {
+            log_message('info', 'Redirecting to install/folders due to failed checks');
             return redirect('install/folders');
         }
 
+        log_message('info', 'Database method called: ' . $this->input->method());
+        log_message('info', 'POST data: ' . json_encode($this->input->post()));
+        log_message('info', 'Session flashdata errors: ' . json_encode($this->session->flashdata('errors')));
+        
         if ($this->input->method() === 'get') {
             return view('installer.steps.database');
         }
@@ -163,41 +206,124 @@ class Install extends CI_Controller
             ->set_rules('database_username', 'Database username', 'required');
 
         if (! $this->form_validation->run()) {
-            return view('installer.steps.database');
+            log_message('error', 'Form validation failed: ' . json_encode($this->form_validation->error_array()));
+            // Debug: tampilkan error validation
+            $this->session->set_flashdata('errors', 'Form validation gagal: ' . implode(', ', $this->form_validation->error_array()));
+            return redirect('install/database');
         }
+        
+        log_message('info', 'Form validation passed, proceeding with database connection test');
 
         try {
-            $connection = new PDO(
-                sprintf(
-                    'mysql:host=%s;port=%s;dbname=%s',
-                    $this->input->post('database_hostname'),
-                    $this->input->post('database_port'),
-                    $this->input->post('database_name')
-                ),
-                $this->input->post('database_username'),
-                $this->input->post('database_password')
-            );
+            $hostname = $this->input->post('database_hostname');
+            $port = $this->input->post('database_port') ?: 3306;
+            $dbname = $this->input->post('database_name');
+            $username = $this->input->post('database_username');
+            $password = $this->input->post('database_password');
+            
+            log_message('info', 'PDO Connection attempt: ' . json_encode([
+                'hostname' => $hostname,
+                'port' => $port,
+                'database' => $dbname,
+                'username' => $username
+            ]));
+            
+            // Try connection tanpa database name dulu untuk test server
+            $dsn_server = "mysql:host={$hostname};port={$port}";
+            $connection_test = new PDO($dsn_server, $username, $password);
+            $connection_test->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Test apakah database exists
+            $stmt = $connection_test->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
+            $stmt->execute([$dbname]);
+            if (!$stmt->fetch()) {
+                throw new Exception("Database '{$dbname}' tidak ditemukan");
+            }
+            
+            // Connection ke database spesifik
+            $dsn = "mysql:host={$hostname};port={$port};dbname={$dbname}";
+            $connection = new PDO($dsn, $username, $password);
             $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            log_message('info', 'PDO Connection successful');
+            
         } catch (Exception $e) {
-            log_message('error', $e);
-            $this->session->set_flashdata('errors', 'Tidak berhasil terkoneksi ke database, mohon periksa konfigurasi database di server Anda!');
+            log_message('error', 'PDO Connection failed: ' . $e->getMessage());
+            log_message('error', $e->getTraceAsString());
+            $this->session->set_flashdata('errors', 'Koneksi database gagal: ' . $e->getMessage());
 
             return redirect('install/database');
         }
 
         try {
-            $this->load->database(
-                $this->config_database($this->input->post()),
-                true
-            );
+            $config = $this->config_database($this->input->post());
+            log_message('info', 'Database config: ' . json_encode([
+                'hostname' => $config['hostname'],
+                'port' => $config['port'],
+                'database' => $config['database'],
+                'username' => $config['username'],
+                'dbdriver' => $config['dbdriver']
+            ]));
+            
+            // Load database dengan return object
+            $db = $this->load->database($config, true);
+            
+            // Test koneksi dengan query simple
+            if ($db && method_exists($db, 'query')) {
+                $result = $db->query('SELECT 1');
+                if (!$result) {
+                    throw new Exception('Database connection test failed');
+                }
+            } else {
+                throw new Exception('Database object not created properly');
+            }
+            
         } catch (Exception $e) {
-            log_message('error', $e);
-            $this->session->set_flashdata('errors', $e->getMessage());
+            log_message('error', 'Database connection failed: ' . $e->getMessage());
+            log_message('error', $e->getTraceAsString());
+            $this->session->set_flashdata('errors', 'Tidak berhasil terkoneksi ke database: ' . $e->getMessage());
 
             return redirect('install/database');
         }
 
-        return redirect('install/migrations');
+        // Simpan konfigurasi database ke session untuk langkah berikutnya  
+        // Menggunakan key yang sama dengan config_database() method
+        $db_config = [
+            'hostname' => $this->input->post('database_hostname'),
+            'port' => $this->input->post('database_port'),
+            'database' => $this->input->post('database_name'),
+            'username' => $this->input->post('database_username'),
+            'password' => $this->input->post('database_password')
+        ];
+        
+        // Set flag instalasi dan database config
+        $this->session->set_userdata('instalasi', true);
+        $this->session->set_userdata($db_config);
+        
+        // Backup database config ke file sebagai fallback
+        $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
+        file_put_contents($backup_file, json_encode($db_config));
+        
+        // Backup juga ke cookies sebagai triple fallback
+        $this->input->set_cookie('installer_hostname', $db_config['hostname'], 3600);
+        $this->input->set_cookie('installer_database', $db_config['database'], 3600);
+        $this->input->set_cookie('installer_username', $db_config['username'], 3600);
+        $this->input->set_cookie('installer_password', base64_encode($db_config['password']), 3600);
+        $this->input->set_cookie('installer_port', $db_config['port'], 3600);
+        
+        // Log semua session data untuk debugging
+        log_message('info', 'Database success - All session data after save: ' . json_encode($this->session->all_userdata()));
+        log_message('info', 'Session ID after save: ' . $this->session->session_id);
+        
+
+        // Jika koneksi database berhasil, langsung lanjutkan ke migrations atau user
+        if (file_exists(DESAPATH)) {
+            // Jika folder desa sudah ada, langsung ke user step
+            return redirect('install/user');
+        } else {
+            // Jika folder desa belum ada, langsung jalankan migrations
+            return redirect('install/migrations');
+        }
     }
 
     private function config_database(array $request = []): array
@@ -237,7 +363,7 @@ class Install extends CI_Controller
                 | Untuk setting koneksi database 'Strict Mode'
                 | Sesuaikan dengan ketentuan hosting
                 */
-                {$db}['default']['stricton'] = true;
+                {$db}['default']['stricton'] = false;
                 EOS
         );
 
@@ -250,7 +376,7 @@ class Install extends CI_Controller
             'database' => $this->session->database,
             'dbdriver' => 'mysqli',
             'dbprefix' => '',
-            'pconnect' => true,
+            'pconnect' => false,
             'db_debug' => true,
             'cache_on' => false,
             'cachedir' => '',
@@ -274,15 +400,48 @@ class Install extends CI_Controller
             show_404();
         }
 
-        $this->load->database($this->config_database());
-
-        if (
-            ! $this->db
-            || ! $this->check_server()
-            || ! $this->check_folders()
-        ) {
+        // Cek konfigurasi database dari file backup terlebih dahulu (tidak bergantung session/cookies)
+        $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
+        $db_config_valid = false;
+        
+        if (file_exists($backup_file)) {
+            $backup_config = json_decode(file_get_contents($backup_file), true);
+            if ($backup_config && isset($backup_config['hostname'], $backup_config['database'], $backup_config['username'])) {
+                // Restore dari backup
+                $this->session->set_userdata($backup_config);
+                $db_config_valid = true;
+            }
+        }
+        
+        // Fallback ke session jika file backup tidak ada
+        if (!$db_config_valid) {
+            $db_config_valid = $this->session->hostname && $this->session->database && $this->session->username;
+        }
+        
+        if (!$db_config_valid) {
+            $this->session->set_flashdata('errors', 'Konfigurasi database tidak ditemukan. Silakan ulangi konfigurasi database.');
             return redirect('install/database');
         }
+
+        try {
+            $this->load->database($this->config_database());
+            
+            // Test koneksi database
+            if (!$this->db || !$this->db->initialize()) {
+                throw new Exception('Unable to initialize database connection');
+            }
+            
+            log_message('info', 'Database loaded successfully for migrations');
+        } catch (Exception $e) {
+            log_message('error', 'Database connection failed in migrations: ' . $e->getMessage());
+            return redirect('install/database');
+        }
+
+        // Skip server/folders check di migrations - sudah dicek di step sebelumnya
+        // if (!$this->check_server() || !$this->check_folders()) {
+        //     log_message('error', 'Server or folders check failed in migrations');
+        //     return redirect('install/database');
+        // }
 
         if ($this->input->method() === 'get') {
             return view('installer.steps.migrations');
@@ -366,7 +525,29 @@ class Install extends CI_Controller
             'instalasi',
         ]);
 
-        redirect('/');
+        // Hapus cookies installer yang mungkin menyebabkan konflik
+        $this->input->set_cookie('installer_hostname', '', -1);
+        $this->input->set_cookie('installer_database', '', -1);
+        $this->input->set_cookie('installer_username', '', -1);
+        $this->input->set_cookie('installer_password', '', -1);
+        $this->input->set_cookie('installer_port', '', -1);
+        
+        // Hapus file backup installer
+        $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
+        if (file_exists($backup_file)) {
+            unlink($backup_file);
+        }
+
+        // Clear all cookies untuk mencegah konflik
+        foreach ($_COOKIE as $name => $value) {
+            if (strpos($name, 'installer_') === 0 || $name === 'opensid_installer') {
+                setcookie($name, '', time() - 3600, '/');
+            }
+        }
+
+        // Redirect ke halaman login admin dengan pesan sukses
+        $this->session->set_flashdata('success', 'Instalasi OpenSID berhasil! Silakan login dengan username dan password yang telah Anda buat.');
+        redirect('siteman');
     }
 
     public function syarat_sandi($password)

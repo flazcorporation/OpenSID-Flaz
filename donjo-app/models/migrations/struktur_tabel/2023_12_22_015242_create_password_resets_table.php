@@ -48,7 +48,9 @@ return new class () extends Migration {
     public function up()
     {
         Schema::create('password_resets', static function (Blueprint $table) {
-            $table->string('email')->primary();
+            // Limit email length untuk menghindari error "Specified key was too long" 
+            // pada MySQL utf8mb4 dengan primary key
+            $table->string('email', 191)->primary();
             $table->string('token');
             $table->timestamp('created_at')->useCurrent();
         });

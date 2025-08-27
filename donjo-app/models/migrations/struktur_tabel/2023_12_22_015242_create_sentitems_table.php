@@ -38,6 +38,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class () extends Migration {
     /**
@@ -61,7 +62,7 @@ return new class () extends Migration {
             $table->text('TextDecoded');
             $table->unsignedInteger('ID')->default(0);
             $table->integer('config_id')->nullable();
-            $table->string('SenderID');
+            $table->string('SenderID', 100);
             $table->integer('SequencePosition')->default(1);
             $table->enum('Status', ['SendingOK', 'SendingOKNoReport', 'SendingError', 'DeliveryOK', 'DeliveryFailed', 'DeliveryPending', 'DeliveryUnknown', 'Error'])->default('SendingOK');
             $table->integer('StatusError')->default(-1);
@@ -70,11 +71,14 @@ return new class () extends Migration {
             $table->text('CreatorID');
 
             $table->index(['config_id', 'TPMR'], 'sentitems_tpmr_config');
-            $table->index(['config_id', 'SenderID'], 'sentitems_sender_config');
             $table->index(['config_id', 'DeliveryDateTime'], 'sentitems_date_config');
             $table->index(['config_id', 'DestinationNumber'], 'sentitems_dest_config');
             $table->primary(['ID', 'SequencePosition']);
         });
+        
+        // Untuk menghindari error "Specified key was too long" pada MySQL utf8mb4
+        // Buat index dengan panjang terbatas setelah tabel dibuat
+        DB::statement('ALTER TABLE sentitems ADD INDEX sentitems_sender_config (config_id, SenderID(50))');
     }
 
     /**

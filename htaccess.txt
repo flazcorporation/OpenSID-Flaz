@@ -1,60 +1,141 @@
 #============
+# HTACCESS OpenSID
+# 
 # Di server yg ada Apache, gunakan file ini untuk menghapus index.php dari url OpenSID,
 # dan untuk mengamankan folder desa.
 # Untuk mengaktifkan, ubah nama file ini menjadi .htaccess,
 # Sesudah aktif, misalnya, modul Web bisa dipanggil dengan http://localhost/first.
 # Untuk menggunakan fitur ini, pastikan konfigurasi Apache di server SID
 # mengizinkan penggunaan .htaccess
+#
+# TROUBLESHOOTING:
+# - Jika error 403: Pastikan folder memiliki permission 755 dan file 644
+# - Jika error 500: Periksa log Apache atau nonaktifkan HTTPS redirect
+# - Di hosting shared: Sesuaikan RewriteBase dengan subfolder
 #============
+
+# Basic security headers (optional - disable if causing issues)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options SAMEORIGIN
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
 RewriteEngine on
 RewriteBase /
 # Apabila menggunakan sub-domain atau sub-folder gunakan bentuk berikut
 # RewriteBase /nama-sub-folder/
 
-# Prevent index dirs
-RewriteCond $1
-RewriteRule ^(.*)$ index.php/$1 [L,QSA]
+# Allow access to the main directory
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
 
-# General dirs / files
-RewriteCond $1 !^(index\.php|resources|robots\.txt)
+# Installer access - allow install directory during setup
+RewriteCond %{REQUEST_URI} ^/index\.php/install [NC]
+RewriteRule ^(.*)$ - [S,L]
+
+# Allow direct access to necessary files and directories
+RewriteCond $1 !^(index\.php|assets|resources|robots\.txt|sitemap\.xml|favicon\.ico)
+RewriteCond $1 !^(themes|modules|donjo-app/views)
+RewriteCond $1 !^(desa/.*)
+RewriteCond $1 !^(storage/framework/sessions/.*)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php/$1 [L,QSA]
-# Prevent access to all files within the folder
-RewriteRule ^(\.git|\.github) - [F,L]
-RewriteRule ^(\bin) - [F,L]
+
+# Prevent access to sensitive directories (but allow installer temp files)
+RewriteCond %{REQUEST_URI} !^/storage/framework/installer_db_config\.tmp$ [NC]
+RewriteRule ^(\.git|\.github|bin|vendor|storage/app|storage/logs) - [F,L]
 
 # Protect Folder Not Index
-Options All -Indexes
+Options -Indexes
 
-# Paksa menggunakan https
-RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# Allow access to the root directory
+<Directory />
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Directory>
 
-# Restrict access to DotFiles (like .htaccess, , .gitignore....)
+# Allow access to common file types
+<FilesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|pdf|txt|xml)$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# Allow access to PHP files (untuk assets yang memerlukan processing)
+<FilesMatch "\.php$">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</FilesMatch>
+
+# Ensure index.php is accessible
+<Files "index.php">
+    <IfModule mod_authz_core.c>
+        Require all granted
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Allow from all
+    </IfModule>
+</Files>
+
+# Paksa menggunakan https - HANYA untuk production
+# Uncomment baris berikut jika sudah production dan menggunakan SSL
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Restrict access to DotFiles (like .htaccess, .gitignore....)
 <FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # Restrict access to sensitive system files
-<IfVersion < 2.4>
-    <FilesMatch "^(composer\.(json|lock)|mitra|app_key|phpunit\.xml(\.dist)?|rector)$">
+<FilesMatch "^(composer\.(json|lock)|mitra|app_key|phpunit\.xml(\.dist)?|rector)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
         Order allow,deny
         Deny from all
-    </FilesMatch>
-</IfVersion>
-
-<IfVersion >= 2.4>
-    <FilesMatch "^(composer\.(json|lock)|mitra|app_key|phpunit\.xml(\.dist)?|rector)$">
-        Require all denied
-    </FilesMatch>
-</IfVersion>
-
-<FilesMatch "(?i)\.(zip|rar)$">
-  Deny from all
+    </IfModule>
 </FilesMatch>
+
+# Restrict access to archive files (uncomment if needed)
+# <FilesMatch "(?i)\.(zip|rar|tar\.gz|7z)$">
+#     <IfModule mod_authz_core.c>
+#         Require all denied
+#     </IfModule>
+#     <IfModule !mod_authz_core.c>
+#         Order allow,deny
+#         Deny from all
+#     </IfModule>
+# </FilesMatch>
 
 # Expire Caching
 <IfModule mod_expires.c>

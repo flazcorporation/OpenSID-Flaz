@@ -204,20 +204,30 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function registerMacrosDropIfExistsDBGabungan($table = null, $model = null)
     {
-        Schema::macro('dropIfExistsDBGabungan', static function ($table, $model) {
-            try {
-                if (DB::table('config')->count() === 1) {
-                    Schema::dropIfExists($table);
-                } else {
-                    if (Schema::hasTable($table)) {
-                        $model::withoutConfigId(identitas('id'))->delete();
-                    }
-                }
-            } catch (Exception $e) {
-                // Database belum terkonfigurasi (saat installer), skip macro
+        try {
+            // Skip jika installer belum selesai
+            if (!defined('DESAPATH') || !file_exists(DESAPATH)) {
                 return;
             }
-        });
+            
+            Schema::macro('dropIfExistsDBGabungan', static function ($table, $model) {
+                try {
+                    if (DB::table('config')->count() === 1) {
+                        Schema::dropIfExists($table);
+                    } else {
+                        if (Schema::hasTable($table)) {
+                            $model::withoutConfigId(identitas('id'))->delete();
+                        }
+                    }
+                } catch (Exception $e) {
+                    // Database belum terkonfigurasi (saat installer), skip macro
+                    return;
+                }
+            });
+        } catch (Exception $e) {
+            // Skip macro registration jika Laravel belum siap
+            return;
+        }
     }
 
     /**

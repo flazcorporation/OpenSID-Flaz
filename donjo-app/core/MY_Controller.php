@@ -104,32 +104,41 @@ class MY_Controller extends CI_Controller
     private function cekConfig(): void
     {
         // jika belum install
-        if (! file_exists(DESAPATH)) {
+        // Skip redirect jika sedang mengakses installer (berdasarkan URL)
+        if (! file_exists(DESAPATH) && $this->router->class !== 'install') {
             redirect('install');
         }
 
-        $this->load->database();
+        // Skip database loading untuk installer (karena belum ada konfigurasi)
+        if ($this->router->class !== 'install') {
+            $this->load->database();
+        }
 
         // Tambahkan model yg akan diautoload di sini. Seeder di load disini setelah
         // installer berhasil dijalankan dengan kondisi folder desa sudah ada.
-        $this->load->model(['seeders/seeder', 'setting_model']);
-
-        $appKey   = get_app_key();
-        $appKeyDb = Config::first();
-
-        if (Config::count() === 0) {
-            $this->session->cek_app_key = true;
-            show_error('Silahkan tambah desa baru melalui console');
-        } elseif (Config::count() > 1) {
-            $appKeyDb = Config::appKey()->first();
+        if ($this->router->class !== 'install') {
+            $this->load->model(['seeders/seeder', 'setting_model']);
         }
 
-        if (! empty($appKeyDb->app_key) && $appKey !== $appKeyDb->app_key) {
-            $this->session->cek_app_key = true;
-            redirect('koneksi_database/config');
-        }
+        // Skip app key dan database checks untuk installer
+        if ($this->router->class !== 'install') {
+            $appKey   = get_app_key();
+            $appKeyDb = Config::first();
 
-        $this->setting_model->init();
+            if (Config::count() === 0) {
+                $this->session->cek_app_key = true;
+                show_error('Silahkan tambah desa baru melalui console');
+            } elseif (Config::count() > 1) {
+                $appKeyDb = Config::appKey()->first();
+            }
+
+            if (! empty($appKeyDb->app_key) && $appKey !== $appKeyDb->app_key) {
+                $this->session->cek_app_key = true;
+                redirect('koneksi_database/config');
+            }
+
+            $this->setting_model->init();
+        }
 
         $this->cek_anjungan = $this->cekAnjungan();
     }
