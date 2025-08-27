@@ -104,8 +104,8 @@ class MY_Controller extends CI_Controller
     private function cekConfig(): void
     {
         // jika belum install
-        // Skip redirect jika sedang dalam proses installer (session instalasi aktif)
-        if (! file_exists(DESAPATH) && empty($this->session->instalasi)) {
+        // Skip redirect jika sedang mengakses installer (berdasarkan URL)
+        if (! file_exists(DESAPATH) && $this->router->class !== 'install') {
             redirect('install');
         }
 

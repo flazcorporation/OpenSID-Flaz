@@ -388,44 +388,26 @@ class Install extends CI_Controller
             show_404();
         }
 
-        // Cek apakah konfigurasi database ada di session
-        $db_config_valid = $this->session->hostname && $this->session->database && $this->session->username;
+        // Cek konfigurasi database dari file backup terlebih dahulu (tidak bergantung session/cookies)
+        $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
+        $db_config_valid = false;
         
-        // Jika tidak ada di session, coba load dari file backup
-        if (!$db_config_valid) {
-            $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
-            
-            if (file_exists($backup_file)) {
-                $backup_config = json_decode(file_get_contents($backup_file), true);
-                if ($backup_config && isset($backup_config['hostname'], $backup_config['database'], $backup_config['username'])) {
-                    // Restore dari backup
-                    $this->session->set_userdata($backup_config);
-                    $db_config_valid = true;
-                }
-            }
-            
-            // Jika masih tidak ada, coba dari cookies
-            if (!$db_config_valid) {
-                $cookie_hostname = $this->input->cookie('installer_hostname');
-                $cookie_database = $this->input->cookie('installer_database');
-                $cookie_username = $this->input->cookie('installer_username');
-                
-                if ($cookie_hostname && $cookie_database && $cookie_username) {
-                    $cookie_config = [
-                        'hostname' => $cookie_hostname,
-                        'database' => $cookie_database,
-                        'username' => $cookie_username,
-                        'password' => base64_decode($this->input->cookie('installer_password')),
-                        'port' => $this->input->cookie('installer_port') ?: 3306
-                    ];
-                    $this->session->set_userdata($cookie_config);
-                    $db_config_valid = true;
-                }
+        if (file_exists($backup_file)) {
+            $backup_config = json_decode(file_get_contents($backup_file), true);
+            if ($backup_config && isset($backup_config['hostname'], $backup_config['database'], $backup_config['username'])) {
+                // Restore dari backup
+                $this->session->set_userdata($backup_config);
+                $db_config_valid = true;
             }
         }
         
+        // Fallback ke session jika file backup tidak ada
         if (!$db_config_valid) {
-            $this->session->set_flashdata('errors', 'Konfigurasi database hilang dari session. Pastikan folder storage/framework/sessions ada dan memiliki permission 755. Jika folder tidak ada, buat manual di File Manager cPanel.');
+            $db_config_valid = $this->session->hostname && $this->session->database && $this->session->username;
+        }
+        
+        if (!$db_config_valid) {
+            $this->session->set_flashdata('errors', 'Konfigurasi database tidak ditemukan. Silakan ulangi konfigurasi database.');
             return redirect('install/database');
         }
 

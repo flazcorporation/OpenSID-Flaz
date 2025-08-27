@@ -53,7 +53,7 @@ class ViewServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Skip identitas() call selama instalasi untuk mencegah error database
-        if (! $this->app['ci']->session->instalasi && (!defined('DESAPATH') || file_exists(DESAPATH))) {
+        if ($this->app['ci']->router->class !== 'install' && (!defined('DESAPATH') || file_exists(DESAPATH))) {
             try {
                 $desa = identitas();
             } catch (Exception) {
