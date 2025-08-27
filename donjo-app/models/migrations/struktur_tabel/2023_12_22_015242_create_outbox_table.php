@@ -69,11 +69,12 @@ return new class () extends Migration {
             $table->enum('DeliveryReport', ['default', 'yes', 'no'])->nullable()->default('default');
             $table->text('CreatorID')->nullable();
 
-            // Untuk menghindari error "Specified key was too long" pada MySQL utf8mb4
-            // Gunakan panjang index yang lebih pendek untuk SenderID
-            DB::statement('ALTER TABLE outbox ADD INDEX outbox_sender_config (config_id, SenderID(50))');
             $table->index(['SendingDateTime', 'SendingTimeOut'], 'outbox_date_config');
         });
+        
+        // Untuk menghindari error "Specified key was too long" pada MySQL utf8mb4
+        // Buat index dengan panjang terbatas setelah tabel dibuat
+        DB::statement('ALTER TABLE outbox ADD INDEX outbox_sender_config (config_id, SenderID(50))');
     }
 
     /**
