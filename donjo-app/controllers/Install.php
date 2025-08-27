@@ -143,7 +143,14 @@ class Install extends CI_Controller
             show_404();
         }
 
-        if (! $this->check_server() || ! $this->check_folders()) {
+        $server_ok = $this->check_server();
+        $folders_ok = $this->check_folders();
+        
+        log_message('info', 'Server check: ' . ($server_ok ? 'PASS' : 'FAIL'));
+        log_message('info', 'Folders check: ' . ($folders_ok ? 'PASS' : 'FAIL'));
+        
+        if (!$server_ok || !$folders_ok) {
+            log_message('info', 'Redirecting to install/folders due to failed checks');
             return redirect('install/folders');
         }
 
@@ -243,7 +250,20 @@ class Install extends CI_Controller
             return redirect('install/database');
         }
 
-        return redirect('install/migrations');
+        // Simpan konfigurasi database ke session untuk langkah berikutnya
+        $this->session->set_userdata([
+            'database_hostname' => $this->input->post('database_hostname'),
+            'database_port' => $this->input->post('database_port'),
+            'database_name' => $this->input->post('database_name'),
+            'database_username' => $this->input->post('database_username'),
+            'database_password' => $this->input->post('database_password')
+        ]);
+
+        $this->session->set_flashdata('success', 'Koneksi database berhasil! Klik tombol di bawah untuk melanjutkan ke langkah berikutnya.');
+        
+        return view('installer.steps.database', [
+            'connection_success' => true
+        ]);
     }
 
     private function config_database(array $request = []): array

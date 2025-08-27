@@ -4,6 +4,24 @@
     <p class="pb-3 text-gray-800">
         Di bawah ini Anda harus memasukkan rincian koneksi database Anda. Jika Anda tidak yakin tentang ini, hubungi penyedia hosting Anda.
     </p>
+    
+    @if ($ci->session->success)
+        <div class="bg-green-100 border-l-4 border-green-500 p-4 mb-3">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm leading-5 text-green-700">
+                        {!! $ci->session->success !!}
+                    </p>
+                </div>
+            </div>
+        </div>
+    @endif
+    
     @if ($ci->session->errors)
         @if (is_array($ci->session->errors))
             @foreach ($ci->session->errors as $error)
@@ -39,7 +57,18 @@
             </div>
         @endif
     @endif
-    <form method="post" action="{{ site_url('install/database') }}">
+    
+    @if (isset($connection_success) && $connection_success)
+        <div class="flex justify-end">
+            <a href="{{ site_url('install/migrations') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                Lanjutkan ke Migrasi Database
+                <svg class="fill-current w-5 h-5 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                </svg>
+            </a>
+        </div>
+    @else
+        <form method="post" action="{{ site_url('install/database') }}">
         <input type="hidden" name="<?= $ci->security->get_csrf_token_name() ?>" value="<?= $ci->security->get_csrf_hash() ?>" />
         <div class="mb-3">
             <label for="database_hostname" class="block font-medium leading-5 text-gray-700 pb-2">
@@ -128,5 +157,6 @@
             </button>
 
         </div>
-    </form>
+        </form>
+    @endif
 @endsection
