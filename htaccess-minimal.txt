@@ -1,0 +1,18 @@
+#============
+# Ultra Minimal htaccess untuk cPanel - OpenSID
+# Jika htaccess.txt masih error 403, gunakan file ini
+#============
+
+# Only basic URL rewriting
+RewriteEngine On
+
+# Simple rewrite rule for OpenSID
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php/$1 [L]
+
+# Basic file protection
+<Files ~ "^\.(htaccess|htpasswd|ini|log|sh|inc|bak)$">
+    Order deny,allow
+    Deny from all
+</Files>

@@ -39,7 +39,7 @@
             </div>
         @endif
     @endif
-    <form method="post" action="{{ site_url('install/database') }}">
+    <form method="post" action="{{ current_url() }}">
         <input type="hidden" name="<?= $ci->security->get_csrf_token_name() ?>" value="<?= $ci->security->get_csrf_hash() ?>" />
         <div class="mb-3">
             <label for="database_hostname" class="block font-medium leading-5 text-gray-700 pb-2">
