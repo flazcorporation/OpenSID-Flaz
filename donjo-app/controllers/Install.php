@@ -186,13 +186,26 @@ class Install extends CI_Controller
         }
 
         try {
-            $this->load->database(
-                $this->config_database($this->input->post()),
-                true
-            );
+            $config = $this->config_database($this->input->post());
+            log_message('info', 'Database config: ' . json_encode([
+                'hostname' => $config['hostname'],
+                'port' => $config['port'],
+                'database' => $config['database'],
+                'username' => $config['username'],
+                'dbdriver' => $config['dbdriver']
+            ]));
+            
+            $this->load->database($config, true);
+            
+            // Test koneksi eksplisit
+            if (!$this->db->initialize()) {
+                throw new Exception('Unable to initialize database connection');
+            }
+            
         } catch (Exception $e) {
-            log_message('error', $e);
-            $this->session->set_flashdata('errors', $e->getMessage());
+            log_message('error', 'Database connection failed: ' . $e->getMessage());
+            log_message('error', $e->getTraceAsString());
+            $this->session->set_flashdata('errors', 'Tidak berhasil terkoneksi ke database: ' . $e->getMessage());
 
             return redirect('install/database');
         }
@@ -237,7 +250,7 @@ class Install extends CI_Controller
                 | Untuk setting koneksi database 'Strict Mode'
                 | Sesuaikan dengan ketentuan hosting
                 */
-                {$db}['default']['stricton'] = true;
+                {$db}['default']['stricton'] = false;
                 EOS
         );
 
@@ -250,7 +263,7 @@ class Install extends CI_Controller
             'database' => $this->session->database,
             'dbdriver' => 'mysqli',
             'dbprefix' => '',
-            'pconnect' => true,
+            'pconnect' => false,
             'db_debug' => true,
             'cache_on' => false,
             'cachedir' => '',
