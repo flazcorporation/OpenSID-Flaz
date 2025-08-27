@@ -63,19 +63,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Skip boot process jika folder desa belum ada (installer belum selesai)
+        // Selalu register macros karena diperlukan untuk migrasi
+        $this->registerMacros();
+        $this->registerCoreViews();
+
+        // Skip database-dependent operations jika installer belum selesai
         if (!defined('DESAPATH') || !file_exists(DESAPATH)) {
             return;
         }
 
         try {
-            $this->registerMacros();
-            $this->registerCoreViews();
             if (ENVIRONMENT == 'development') {
                 $this->logQuery();
             }
         } catch (Exception $e) {
-            // Skip boot process jika database belum terkonfigurasi
+            // Skip jika ada masalah database
             if (strpos($e->getMessage(), 'Database connection') !== false) {
                 return;
             }

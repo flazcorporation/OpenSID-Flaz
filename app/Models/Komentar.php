@@ -198,7 +198,7 @@ class Komentar extends BaseModel
     {
         self::boot();
         static::addGlobalScope('isKomentar', static function (Builder $builder) {
-            $builder->whereNotIn('id_artikel', ['null', '775'])->whereNotNull('id_artikel');
+            $builder->whereNotIn('id_artikel', ['775'])->whereNotNull('id_artikel');
         });
         static::deleting(static function ($komentar) {
             $komentar->children()->delete();
