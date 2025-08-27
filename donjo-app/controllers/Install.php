@@ -187,6 +187,8 @@ class Install extends CI_Controller
         }
 
         log_message('info', 'Database method called: ' . $this->input->method());
+        log_message('info', 'POST data: ' . json_encode($this->input->post()));
+        log_message('info', 'Session flashdata errors: ' . json_encode($this->session->flashdata('errors')));
         
         if ($this->input->method() === 'get') {
             return view('installer.steps.database');
@@ -205,7 +207,9 @@ class Install extends CI_Controller
 
         if (! $this->form_validation->run()) {
             log_message('error', 'Form validation failed: ' . json_encode($this->form_validation->error_array()));
-            return view('installer.steps.database');
+            // Debug: tampilkan error validation
+            $this->session->set_flashdata('errors', 'Form validation gagal: ' . implode(', ', $this->form_validation->error_array()));
+            return redirect('install/database');
         }
         
         log_message('info', 'Form validation passed, proceeding with database connection test');
