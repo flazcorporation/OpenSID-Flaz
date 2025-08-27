@@ -530,7 +530,29 @@ class Install extends CI_Controller
             'instalasi',
         ]);
 
-        redirect('/');
+        // Hapus cookies installer yang mungkin menyebabkan konflik
+        $this->input->set_cookie('installer_hostname', '', -1);
+        $this->input->set_cookie('installer_database', '', -1);
+        $this->input->set_cookie('installer_username', '', -1);
+        $this->input->set_cookie('installer_password', '', -1);
+        $this->input->set_cookie('installer_port', '', -1);
+        
+        // Hapus file backup installer
+        $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
+        if (file_exists($backup_file)) {
+            unlink($backup_file);
+        }
+
+        // Clear all cookies untuk mencegah konflik
+        foreach ($_COOKIE as $name => $value) {
+            if (strpos($name, 'installer_') === 0 || $name === 'opensid_installer') {
+                setcookie($name, '', time() - 3600, '/');
+            }
+        }
+
+        // Redirect ke halaman login admin dengan pesan sukses
+        $this->session->set_flashdata('success', 'Instalasi OpenSID berhasil! Silakan login dengan username dan password yang telah Anda buat.');
+        redirect('siteman');
     }
 
     public function syarat_sandi($password)
