@@ -38,6 +38,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class () extends Migration {
     /**
@@ -70,7 +71,9 @@ return new class () extends Migration {
             $table->text('CreatorID');
 
             $table->index(['config_id', 'TPMR'], 'sentitems_tpmr_config');
-            $table->index(['config_id', 'SenderID'], 'sentitems_sender_config');
+            // Untuk menghindari error "Specified key was too long" pada MySQL utf8mb4
+            // Gunakan panjang index yang lebih pendek untuk SenderID
+            DB::statement('ALTER TABLE sentitems ADD INDEX sentitems_sender_config (config_id, SenderID(50))');
             $table->index(['config_id', 'DeliveryDateTime'], 'sentitems_date_config');
             $table->index(['config_id', 'DestinationNumber'], 'sentitems_dest_config');
             $table->primary(['ID', 'SequencePosition']);

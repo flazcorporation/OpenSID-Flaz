@@ -310,11 +310,8 @@ class Install extends CI_Controller
         log_message('info', 'Session ID after save: ' . $this->session->session_id);
         
 
-        $this->session->set_flashdata('success', 'Koneksi database berhasil! Klik tombol di bawah untuk melanjutkan ke langkah berikutnya.');
-        
-        return view('installer.steps.database', [
-            'connection_success' => true
-        ]);
+        // Langsung redirect ke migrations karena koneksi sudah berhasil
+        return redirect('install/migrations');
     }
 
     private function config_database(array $request = []): array

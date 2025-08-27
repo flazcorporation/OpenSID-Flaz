@@ -58,17 +58,7 @@
         @endif
     @endif
     
-    @if (isset($connection_success) && $connection_success)
-        <div class="flex justify-end">
-            <a href="{{ site_url('install/migrations') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded inline-flex items-center">
-                Lanjutkan ke Migrasi Database
-                <svg class="fill-current w-5 h-5 ml-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                </svg>
-            </a>
-        </div>
-    @else
-        <form method="post" action="{{ site_url('install/database') }}">
+    <form method="post" action="{{ site_url('install/database') }}">
         <input type="hidden" name="<?= $ci->security->get_csrf_token_name() ?>" value="<?= $ci->security->get_csrf_hash() ?>" />
         <div class="mb-3">
             <label for="database_hostname" class="block font-medium leading-5 text-gray-700 pb-2">
@@ -157,6 +147,5 @@
             </button>
 
         </div>
-        </form>
-    @endif
+    </form>
 @endsection
