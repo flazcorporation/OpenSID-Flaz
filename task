@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# OpenSID Task Runner - Simplified Interface
+# Usage: ./task fresh-install
+
+OPENSID_ROOT="/home/mulyawansentosa/Documents/Production/Project/OpenSID/Flaz/OpenSID-Flaz"
+
+cd "$OPENSID_ROOT" || {
+    echo "Error: Cannot change to OpenSID directory"
+    exit 1
+}
+
+exec "$OPENSID_ROOT/run-agent.sh" "$@"
