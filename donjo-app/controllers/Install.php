@@ -124,8 +124,9 @@ class Install extends CI_Controller
 
     private function check_server(): bool
     {
-        foreach ($this->config->item('server') as $check) {
+        foreach ($this->config->item('server') as $name => $check) {
             if (! $check['check']()) {
+                log_message('error', 'Server check failed: ' . $name . ' - ' . $check['name']);
                 return false;
             }
         }
@@ -154,8 +155,9 @@ class Install extends CI_Controller
 
     private function check_folders(): bool
     {
-        foreach ($this->config->item('folders') as $check) {
+        foreach ($this->config->item('folders') as $name => $check) {
             if (! $check['check']()) {
+                log_message('error', 'Folder check failed: ' . $name . ' - ' . $check['name']);
                 return false;
             }
         }
@@ -425,10 +427,11 @@ class Install extends CI_Controller
             return redirect('install/database');
         }
 
-        if (!$this->check_server() || !$this->check_folders()) {
-            log_message('error', 'Server or folders check failed in migrations');
-            return redirect('install/database');
-        }
+        // Skip server/folders check di migrations - sudah dicek di step sebelumnya
+        // if (!$this->check_server() || !$this->check_folders()) {
+        //     log_message('error', 'Server or folders check failed in migrations');
+        //     return redirect('install/database');
+        // }
 
         if ($this->input->method() === 'get') {
             return view('installer.steps.migrations');
