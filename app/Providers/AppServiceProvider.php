@@ -206,6 +206,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Schema::macro('dropIfExistsDBGabungan', static function ($table, $model) {
             try {
+                // Skip jika installer belum selesai
+                if (!defined('DESAPATH') || !file_exists(DESAPATH)) {
+                    return;
+                }
+                
                 if (DB::table('config')->count() === 1) {
                     Schema::dropIfExists($table);
                 } else {
