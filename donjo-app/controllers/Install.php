@@ -147,6 +147,8 @@ class Install extends CI_Controller
             return redirect('install/folders');
         }
 
+        log_message('info', 'Database method called: ' . $this->input->method());
+        
         if ($this->input->method() === 'get') {
             return view('installer.steps.database');
         }
@@ -163,8 +165,11 @@ class Install extends CI_Controller
             ->set_rules('database_username', 'Database username', 'required');
 
         if (! $this->form_validation->run()) {
+            log_message('error', 'Form validation failed: ' . json_encode($this->form_validation->error_array()));
             return view('installer.steps.database');
         }
+        
+        log_message('info', 'Form validation passed, proceeding with database connection test');
 
         try {
             $hostname = $this->input->post('database_hostname');
