@@ -167,20 +167,42 @@ class Install extends CI_Controller
         }
 
         try {
-            $connection = new PDO(
-                sprintf(
-                    'mysql:host=%s;port=%s;dbname=%s',
-                    $this->input->post('database_hostname'),
-                    $this->input->post('database_port'),
-                    $this->input->post('database_name')
-                ),
-                $this->input->post('database_username'),
-                $this->input->post('database_password')
-            );
+            $hostname = $this->input->post('database_hostname');
+            $port = $this->input->post('database_port') ?: 3306;
+            $dbname = $this->input->post('database_name');
+            $username = $this->input->post('database_username');
+            $password = $this->input->post('database_password');
+            
+            log_message('info', 'PDO Connection attempt: ' . json_encode([
+                'hostname' => $hostname,
+                'port' => $port,
+                'database' => $dbname,
+                'username' => $username
+            ]));
+            
+            // Try connection tanpa database name dulu untuk test server
+            $dsn_server = "mysql:host={$hostname};port={$port}";
+            $connection_test = new PDO($dsn_server, $username, $password);
+            $connection_test->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            // Test apakah database exists
+            $stmt = $connection_test->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
+            $stmt->execute([$dbname]);
+            if (!$stmt->fetch()) {
+                throw new Exception("Database '{$dbname}' tidak ditemukan");
+            }
+            
+            // Connection ke database spesifik
+            $dsn = "mysql:host={$hostname};port={$port};dbname={$dbname}";
+            $connection = new PDO($dsn, $username, $password);
             $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            
+            log_message('info', 'PDO Connection successful');
+            
         } catch (Exception $e) {
-            log_message('error', $e);
-            $this->session->set_flashdata('errors', 'Tidak berhasil terkoneksi ke database, mohon periksa konfigurasi database di server Anda!');
+            log_message('error', 'PDO Connection failed: ' . $e->getMessage());
+            log_message('error', $e->getTraceAsString());
+            $this->session->set_flashdata('errors', 'Koneksi database gagal: ' . $e->getMessage());
 
             return redirect('install/database');
         }
