@@ -63,10 +63,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        $this->registerMacros();
-        $this->registerCoreViews();
-        if (ENVIRONMENT == 'development') {
-            $this->logQuery();
+        // Skip boot process jika folder desa belum ada (installer belum selesai)
+        if (!defined('DESAPATH') || !file_exists(DESAPATH)) {
+            return;
+        }
+
+        try {
+            $this->registerMacros();
+            $this->registerCoreViews();
+            if (ENVIRONMENT == 'development') {
+                $this->logQuery();
+            }
+        } catch (Exception $e) {
+            // Skip boot process jika database belum terkonfigurasi
+            if (strpos($e->getMessage(), 'Database connection') !== false) {
+                return;
+            }
+            throw $e;
         }
     }
 
@@ -190,12 +203,17 @@ class AppServiceProvider extends ServiceProvider
     protected function registerMacrosDropIfExistsDBGabungan($table = null, $model = null)
     {
         Schema::macro('dropIfExistsDBGabungan', static function ($table, $model) {
-            if (DB::table('config')->count() === 1) {
-                Schema::dropIfExists($table);
-            } else {
-                if (Schema::hasTable($table)) {
-                    $model::withoutConfigId(identitas('id'))->delete();
+            try {
+                if (DB::table('config')->count() === 1) {
+                    Schema::dropIfExists($table);
+                } else {
+                    if (Schema::hasTable($table)) {
+                        $model::withoutConfigId(identitas('id'))->delete();
+                    }
                 }
+            } catch (Exception $e) {
+                // Database belum terkonfigurasi (saat installer), skip macro
+                return;
             }
         });
     }
