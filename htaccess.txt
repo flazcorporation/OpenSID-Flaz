@@ -14,7 +14,7 @@
 # - Di hosting shared: Sesuaikan RewriteBase dengan subfolder
 #============
 
-# Basic security headers
+# Basic security headers (optional - disable if causing issues)
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options nosniff
     Header always set X-Frame-Options SAMEORIGIN
@@ -34,15 +34,21 @@ RewriteBase /
     Allow from all
 </IfModule>
 
+# Installer access - allow install directory during setup
+RewriteCond %{REQUEST_URI} ^/index\.php/install [NC]
+RewriteRule ^(.*)$ - [S,L]
+
 # Allow direct access to necessary files and directories
 RewriteCond $1 !^(index\.php|assets|resources|robots\.txt|sitemap\.xml|favicon\.ico)
 RewriteCond $1 !^(themes|modules|donjo-app/views)
 RewriteCond $1 !^(desa/.*)
+RewriteCond $1 !^(storage/framework/sessions/.*)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php/$1 [L,QSA]
 
-# Prevent access to sensitive directories
+# Prevent access to sensitive directories (but allow installer temp files)
+RewriteCond %{REQUEST_URI} !^/storage/framework/installer_db_config\.tmp$ [NC]
 RewriteRule ^(\.git|\.github|bin|vendor|storage/app|storage/logs) - [F,L]
 
 # Protect Folder Not Index
