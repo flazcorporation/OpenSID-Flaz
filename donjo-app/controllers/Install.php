@@ -309,8 +309,6 @@ class Install extends CI_Controller
         log_message('info', 'Database success - All session data after save: ' . json_encode($this->session->all_userdata()));
         log_message('info', 'Session ID after save: ' . $this->session->session_id);
         
-        // Debug output untuk memastikan kode berjalan
-        echo "<!-- DEBUG: Database config saved at " . date('Y-m-d H:i:s') . " -->". PHP_EOL;
 
         $this->session->set_flashdata('success', 'Koneksi database berhasil! Klik tombol di bawah untuk melanjutkan ke langkah berikutnya.');
         
@@ -393,30 +391,18 @@ class Install extends CI_Controller
             show_404();
         }
 
-        // Debug output untuk memastikan method dipanggil
-        echo "<!-- DEBUG: Migrations method called at " . date('Y-m-d H:i:s') . " -->" . PHP_EOL;
-        
-        // Debug session data di migrations method
-        log_message('info', 'Migrations called - All session data: ' . json_encode($this->session->all_userdata()));
-        log_message('info', 'Migrations called - Session ID: ' . $this->session->session_id);
-        
         // Cek apakah konfigurasi database ada di session
         $db_config_valid = $this->session->hostname && $this->session->database && $this->session->username;
-        
-        echo "<!-- DEBUG: Session config valid: " . ($db_config_valid ? 'YES' : 'NO') . " -->" . PHP_EOL;
         
         // Jika tidak ada di session, coba load dari file backup
         if (!$db_config_valid) {
             $backup_file = FCPATH . 'storage/framework/installer_db_config.tmp';
-            echo "<!-- DEBUG: Checking backup file: " . $backup_file . " exists: " . (file_exists($backup_file) ? 'YES' : 'NO') . " -->" . PHP_EOL;
             
             if (file_exists($backup_file)) {
                 $backup_config = json_decode(file_get_contents($backup_file), true);
                 if ($backup_config && isset($backup_config['hostname'], $backup_config['database'], $backup_config['username'])) {
                     // Restore dari backup
                     $this->session->set_userdata($backup_config);
-                    log_message('info', 'Database config restored from backup file');
-                    echo "<!-- DEBUG: Config restored from backup file -->" . PHP_EOL;
                     $db_config_valid = true;
                 }
             }
@@ -427,8 +413,6 @@ class Install extends CI_Controller
                 $cookie_database = $this->input->cookie('installer_database');
                 $cookie_username = $this->input->cookie('installer_username');
                 
-                echo "<!-- DEBUG: Checking cookies - hostname: " . ($cookie_hostname ? 'EXISTS' : 'NULL') . " -->" . PHP_EOL;
-                
                 if ($cookie_hostname && $cookie_database && $cookie_username) {
                     $cookie_config = [
                         'hostname' => $cookie_hostname,
@@ -438,17 +422,12 @@ class Install extends CI_Controller
                         'port' => $this->input->cookie('installer_port') ?: 3306
                     ];
                     $this->session->set_userdata($cookie_config);
-                    echo "<!-- DEBUG: Config restored from cookies -->" . PHP_EOL;
                     $db_config_valid = true;
                 }
             }
         }
         
         if (!$db_config_valid) {
-            log_message('error', 'Database config missing - hostname: ' . ($this->session->hostname ?? 'null') . 
-                        ', database: ' . ($this->session->database ?? 'null') . 
-                        ', username: ' . ($this->session->username ?? 'null'));
-            echo "<!-- DEBUG: Redirecting to database - config still missing -->" . PHP_EOL;
             $this->session->set_flashdata('errors', 'Konfigurasi database hilang dari session. Pastikan folder storage/framework/sessions ada dan memiliki permission 755. Jika folder tidak ada, buat manual di File Manager cPanel.');
             return redirect('install/database');
         }

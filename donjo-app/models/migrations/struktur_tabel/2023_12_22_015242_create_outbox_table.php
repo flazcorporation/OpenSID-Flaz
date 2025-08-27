@@ -63,7 +63,7 @@ return new class () extends Migration {
             $table->integer('config_id')->nullable();
             $table->enum('MultiPart', ['false', 'true'])->nullable()->default('false');
             $table->integer('RelativeValidity')->nullable()->default(-1);
-            $table->string('SenderID')->nullable();
+            $table->string('SenderID', 100)->nullable();
             $table->timestamp('SendingTimeOut')->nullable();
             $table->enum('DeliveryReport', ['default', 'yes', 'no'])->nullable()->default('default');
             $table->text('CreatorID')->nullable();

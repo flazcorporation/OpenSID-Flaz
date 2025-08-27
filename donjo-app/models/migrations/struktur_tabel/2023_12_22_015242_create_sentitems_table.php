@@ -61,7 +61,7 @@ return new class () extends Migration {
             $table->text('TextDecoded');
             $table->unsignedInteger('ID')->default(0);
             $table->integer('config_id')->nullable();
-            $table->string('SenderID');
+            $table->string('SenderID', 100);
             $table->integer('SequencePosition')->default(1);
             $table->enum('Status', ['SendingOK', 'SendingOKNoReport', 'SendingError', 'DeliveryOK', 'DeliveryFailed', 'DeliveryPending', 'DeliveryUnknown', 'Error'])->default('SendingOK');
             $table->integer('StatusError')->default(-1);
