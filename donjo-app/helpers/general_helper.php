@@ -364,7 +364,16 @@ if (! function_exists('folder')) {
         $folder = FCPATH . $folder;
 
         // Buat folder
-        $hasil = is_dir($folder) || mkdir($folder, $permissions, true);
+        if (is_dir($folder)) {
+            $hasil = true;
+        } else {
+            $hasil = mkdir($folder, $permissions, true);
+            if (!$hasil) {
+                $error = error_get_last();
+                log_message('error', "Failed to create folder {$folder}: " . ($error['message'] ?? 'Unknown error'));
+                throw new Exception("Cannot create folder {$folder}: " . ($error['message'] ?? 'Permission denied'));
+            }
+        }
 
         if ($hasil) {
             if ($htaccess !== null) {

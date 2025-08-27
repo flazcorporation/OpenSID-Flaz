@@ -53,6 +53,9 @@ class Data_awal extends MY_Model
 
     public function up()
     {
+        // Inisialisasi config_id untuk instalasi awal
+        $this->config_id = 1;
+        
         cache()->forget('identitas_desa');
 
         // Ubah config
@@ -202,11 +205,30 @@ class Data_awal extends MY_Model
 
     protected function tambah_pengguna()
     {
+        // Cari grup Administrator menggunakan raw query untuk menghindari masalah scope
+        $adminGrupId = DB::table('user_grup')
+            ->where('nama', 'Administrator')
+            ->where('config_id', $this->config_id)
+            ->value('id');
+        
+        if (!$adminGrupId) {
+            // Fallback: cari berdasarkan slug
+            $adminGrupId = DB::table('user_grup')
+                ->where('slug', 'administrator')
+                ->where('config_id', $this->config_id)
+                ->value('id');
+        }
+        
+        if (!$adminGrupId) {
+            throw new Exception('Grup Administrator tidak ditemukan untuk config_id: ' . $this->config_id);
+        }
+        
         $data = [
             [
+                'config_id'         => $this->config_id,
                 'username'          => 'admin',
                 'password'          => '$2y$10$CfFhuvLXa3RNotqOPYyW2.JujLbAbZ4YO0PtxIRBz4QDLP0/pfH6.',
-                'id_grup'           => UserGrup::where('nama', 'Administrator')->first()->id,
+                'id_grup'           => $adminGrupId,
                 'email'             => null,
                 'id_telegram'       => '0',
                 'last_login'        => '2022-02-28 19:55:01',
