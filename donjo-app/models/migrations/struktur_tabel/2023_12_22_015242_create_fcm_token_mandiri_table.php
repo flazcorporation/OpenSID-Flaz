@@ -50,7 +50,7 @@ return new class () extends Migration {
         Schema::create('fcm_token_mandiri', static function (Blueprint $table) {
             $table->integer('id_user_mandiri')->comment('id user mandiri');
             $table->mediumInteger('config_id');
-            $table->string('device')->unique()->comment('id device dari android pemohon');
+            $table->string('device', 191)->unique()->comment('id device dari android pemohon');
             $table->longText('token')->comment('token yang didapat dari FCM');
             $table->timestamps();
         });

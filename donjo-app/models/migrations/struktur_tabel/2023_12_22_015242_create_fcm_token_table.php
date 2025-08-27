@@ -50,7 +50,7 @@ return new class () extends Migration {
         Schema::create('fcm_token', static function (Blueprint $table) {
             $table->mediumInteger('id_user');
             $table->integer('config_id');
-            $table->string('device')->unique();
+            $table->string('device', 191)->unique();
             $table->longText('token');
             $table->timestamps();
         });
