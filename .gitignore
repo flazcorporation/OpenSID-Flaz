@@ -7,7 +7,6 @@ log-*.php
 **/.DS_Store
 sftp-config.json
 .php-cs-fixer.cache
-/.htaccess
 *.sql
 mitra
 generate-route.php
